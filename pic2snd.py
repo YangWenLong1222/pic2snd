@@ -6,7 +6,7 @@ import numpy as np
 import soundfile as sf
 
 sample_rate = 44100
-total_time = 10
+total_time = 30
 interval = 0.1
 img_path = './example/star.jpeg' 
 snd_path = './example/stereo_file.wav'
@@ -14,7 +14,7 @@ snd_path = './example/stereo_file.wav'
 # snd_path = './example/stereo_file2.wav'
 # img_path = './example/t2.png' 
 # snd_path = './example/stereo_file3.wav'
-is_piano = True    # 用钢琴的方式，就无法设定频率范围。
+is_piano = True # 用钢琴的方式，就无法设定频率范围。
 freq_top = 200000
 freq_bottom = 0
 
@@ -135,10 +135,11 @@ def step1():
             p = math.sqrt(x*x + y*y)
             # 计算这个点对应的声音频率是多少。
             if is_piano:
-                # f means the index of freqArray now.
+                # f means the index of freqArray in this case.
                 f = math.floor(p/pmax * 88)
                 if f == 88: f = 87
             else:
+                # f means the frequency in this case.
                 f = calc_freq(p, pmax)
             pass
 
@@ -158,7 +159,12 @@ def step1():
     return luminance
 
 # 步骤2，整理100ms内的数据。
-# return -- 指定数量的采样点。
+# luminance -- step1中输出的排序完毕的像素点数组。
+# total_time -- 整个视频的长度。
+# interval -- 一个采样分片的长度。
+# rad_init -- 进入这个函数时的弧度。
+# index -- 进入这个函数时该取的luminance数组中的数据的下标。
+# return sinewave, i, rad -- 指定数量的采样点。本次走到的下标和弧度，为下次调用做准备。
 # index -- luminance的起始位置，之前的处理过了, 是排完序的数组。
 def step2(luminance, total_time, interval, rad_init, index):
     freq_array = [0.0 for i in range(88)]
@@ -179,51 +185,29 @@ def step2(luminance, total_time, interval, rad_init, index):
         # 过滤掉亮度比较低的点。
         # if point[0] < 450: continue
 
-        freq_array[point[1]] += point[0]
+        if is_piano:
 
+            # 亮度叠加。
+            freq_array[point[1]] += point[0]
+
+        else:
+            # 不必按照p相同划分了，虽然频率相同，但是是浮点数，可以都当做不同处理，一样的。
+            # 每一个点表示一个微正弦波。随机相位，避免首部叠加过强。
+            sinewave += point[0] * np.sin(2 * np.pi * point[1] * time + 2 * np.pi * np.random.random())
+        pass
         count += 1
     pass
 
-    # 不必按照p相同划分了，虽然频率相同，但是是浮点数，可以都当做不同处理，一样的。
-    # 每一个点表示一个微正弦波。随机相位，避免首部叠加过强。
-    # print(freq_array)
-    fi = 0
-    for fi in range(88):
-        if freq_array[fi] < 0.01: continue  # 避免浮点数运算误差。相当于0，无叠加。
-        sinewave += freq_array[fi] * np.sin(2 * np.pi * piano_f[fi] * time + 2 * np.pi * np.random.random())
+    if is_piano:
+        fi = 0
+        for fi in range(88):
+            if freq_array[fi] < 0.01: continue  # 避免浮点数运算误差。相当于0，无叠加。
+            sinewave += freq_array[fi] * np.sin(2 * np.pi * piano_f[fi] * time + 2 * np.pi * np.random.random())
+        pass
+    pass
 
     sinewave /= count
 
-    return sinewave, i, rad_end
-
-# 步骤22，整理100ms内的数据。
-# return -- 指定数量的采样点。
-# index -- luminance的起始位置，之前的处理过了, 是排完序的数组。
-def step22(luminance, total_time, interval, rad_init, index):
-    # 弧度范围。
-    rad_end = rad_init + interval/total_time * 2 * math.pi
-    # 因为是排完序的，没必要遍历。
-    i = index
-    l = len(luminance)
-    time = np.arange(0, interval, 1/sample_rate)
-    sinewave = np.empty(len(time))
-    count = 0
-    while i < l:
-        point = luminance[i]
-        if point[3] > rad_end: break
-        i += 1
-
-        # 不必按照p相同划分了，虽然频率相同，但是是浮点数，可以都当做不同处理，一样的。
-        # 每一个点表示一个微正弦波。随机相位，避免首部叠加过强。
-        sinewave += point[0] * np.sin(2 * np.pi * point[1] * time + 2 * np.pi * np.random.random())
-        count += 1
-        # 过滤暗点，不一定需要。
-        # if point[0] > 90:
-        #     sinewave += point[0] * np.sin(2 * np.pi * point[1] * time + 2 * np.pi * np.random.random())
-        #     count += 1
-        # pass
-    sinewave /= count
-        
     return sinewave, i, rad_end
 
 def main():
@@ -239,8 +223,7 @@ def main():
     while i < l:
     # while i < 26000:
         i1 = i
-        # sinewave, i, rad = step2(luminance , total_time, interval, rad, i)
-        sinewave, i, rad = step22(luminance , total_time, interval, rad, i)
+        sinewave, i, rad = step2(luminance , total_time, interval, rad, i)
 
         print(len(sinewave))
         print(rad)
@@ -271,7 +254,7 @@ def adjust_range(all_samples):
     print(max)
     return ret
 
-# 根据频率再去调整音量，以适应人耳。
+# TODO: 根据频率再去调整音量，以适应人耳。
 def adjust_s(f):
     return f
 
@@ -283,10 +266,13 @@ def calc_freq2(s):
 
 # 根据距离定频率，直接频率，
 def calc_freq(p, pmax):
+    # np.exp(10) == 22026
+    # np.exp(5) == 148
+    rate = (freq_top - freq_bottom)/(22026 - 148)
     # TODO: 映射算法将来是要改动的. 这是直接映射到0~20000了。
     # return (16000-200)/pmax*p + 200
     # return 20000/pmax*p
-    return np.exp(p/pmax * 5 + 5)
+    return np.exp(p/pmax * 5 + 5) * rate + freq_bottom
     # return np.exp(p/pmax * 10)
 
 if __name__ == '__main__':
