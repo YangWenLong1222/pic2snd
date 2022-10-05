@@ -237,11 +237,13 @@ def main(argv):
     # while i < 26000:
         sinewave, i, rad = step2(luminance , total_time, interval, rad, i)
 
-        print('%%%.2f' % (rad/(2*np.pi)*100))
+        print('\r%%%.2f' % (rad/(2*np.pi)*100), end='')
 
         for sample in sinewave:
             all_samples.append([sample])
         pass
+    pass
+    print()
 
     # print(len(all_samples))
     # samples_2_write = all_samples
