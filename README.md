@@ -27,3 +27,22 @@ This is the help infomation.
 --freq_max:            The maximum frequency. The argument must be an integer. Default is 200000Hz. This parameter only works when '-p' or '--piano' is not set.
 --freq_min:            The minimum frequency. The argument must be an integer. Default is 0Hz. This parameter only works when '-p' or '--piano' is not set.
 ```
+
+### 例子
+
+```
+➜  pic2snd git:(main) ✗ python3 pic2snd.py -i example/t.png -o example/sound.wav -p -t 30
+img_path:	 example/t.png
+snd_path:	 example/sound.wav
+is_piano:	 True
+total_time:	 30
+interval:	 0.100000
+sample_rate:	 44100
+freq_max:	 200000
+freq_min:	 0
+img_cv: (504, 734, 3)
+luminance length: 369936.
+%100.00
+cost: 4.675538 s.
+➜  pic2snd git:(main) ✗
+```
