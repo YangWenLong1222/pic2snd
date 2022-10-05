@@ -132,3 +132,4 @@ dmypy.json
 *.jpeg
 *.png
 .vscode/
+example/

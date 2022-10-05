@@ -235,18 +235,15 @@ def main(argv):
     rad = 0
     while i < l:
     # while i < 26000:
-        i1 = i
         sinewave, i, rad = step2(luminance , total_time, interval, rad, i)
 
-        print(len(sinewave))
-        print(rad)
-        print(i-i1)
+        print('%%%.2f' % (rad/(2*np.pi)*100))
 
         for sample in sinewave:
             all_samples.append([sample])
         pass
 
-    print(len(all_samples))
+    # print(len(all_samples))
     # samples_2_write = all_samples
     samples_2_write = adjust_range(all_samples)
     sf.write(snd_path, samples_2_write, sample_rate, 'PCM_24')
@@ -361,7 +358,7 @@ def adjust_range(all_samples):
     for sample in all_samples:
         ret.append([sample[0]/max])
 
-    print(max)
+    # print(max)
     return ret
 
 # TODO: 根据频率再去调整音量，以适应人耳。
