@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
-import cv2
-import time
-import math
-import numpy as np
-import soundfile as sf
-import sys
-import getopt
+# import cv2
+# import time
+# import math
+# import numpy as np
+# import soundfile as sf
+# import sys
+# import getopt
+
+from cv2 import imread
+from time import time
+from math import sqrt, pi, atan2, floor
+from numpy import exp, arange, empty, sin, random
+from soundfile import write
+from sys import exit, argv
+from getopt import getopt
 
 # sample_rate = 44100
 # total_time = 30
@@ -127,13 +135,15 @@ piano_f = [
 # TODO: 可以设置起始角度位置，可以设置顺时针还是逆时针。
 # TODO: 可以调整弧度值来做到，0到2pi，起始就是起始位置。顺时针就是升序，起始点是0；逆时针就是降序，起始点就是2pi。
 def step1():
-    img_cv = cv2.imread(img_path)  #读取数据
+    # img_cv = cv2.imread(img_path)  #读取数据
+    img_cv = imread(img_path)  #读取数据
     print("img_cv:",img_cv.shape)
 
     (hight, width, n) = img_cv.shape
 
     luminance = []
-    pmax = math.sqrt(width * width + hight * hight)/2
+    # pmax = sqrt(width * width + hight * hight)/2
+    pmax = sqrt(width * width + hight * hight)/2
     zero_x = width/2
     zero_y = hight/2
     for i in range(width):
@@ -143,11 +153,11 @@ def step1():
             # 距离
             x = i - zero_x
             y = j - zero_y
-            p = math.sqrt(x*x + y*y)
+            p = sqrt(x*x + y*y)
             # 计算这个点对应的声音频率是多少。
             if is_piano:
                 # f means the index of freqArray in this case.
-                f = math.floor(p/pmax * 88)
+                f = floor(p/pmax * 88)
                 if f == 88: f = 87
             else:
                 # f means the frequency in this case.
@@ -157,11 +167,11 @@ def step1():
             # 弧度
             w = 0.0
             if x == 0 and y == 0: w = 0
-            if x == 0 and y > 0: w = math.pi/2
-            if x == 0 and y < 0: w = -math.pi/2
-            if x != 0: w = math.atan2(y, x)
+            if x == 0 and y > 0: w = pi/2
+            if x == 0 and y < 0: w = -pi/2
+            if x != 0: w = atan2(y, x)
             # 调整，范围从0~2pi
-            if w < 0: w += 2 * math.pi
+            if w < 0: w += 2 * pi
             luminance.append((s, f, p, w))
 
     # 按照弧度进行排序。
@@ -180,12 +190,12 @@ def step1():
 def step2(luminance, total_time, interval, rad_init, index):
     freq_array = [0.0 for i in range(88)]
     # 弧度范围。
-    rad_end = rad_init + interval/total_time * 2 * math.pi
+    rad_end = rad_init + interval/total_time * 2 * pi
     # 因为是排完序的，没必要遍历。
     i = index
     l = len(luminance)
-    time = np.arange(0, interval, 1/sample_rate)
-    sinewave = np.empty(len(time))
+    time = arange(0, interval, 1/sample_rate)
+    sinewave = empty(len(time))
     count = 0
     while i < l:
         # (s, f, p, w)
@@ -204,7 +214,7 @@ def step2(luminance, total_time, interval, rad_init, index):
         else:
             # 不必按照p相同划分了，虽然频率相同，但是是浮点数，可以都当做不同处理，一样的。
             # 每一个点表示一个微正弦波。随机相位，避免首部叠加过强。
-            sinewave += point[0] * np.sin(2 * np.pi * point[1] * time + 2 * np.pi * np.random.random())
+            sinewave += point[0] * sin(2 * pi * point[1] * time + 2 * pi * random.random())
         pass
         count += 1
     pass
@@ -213,7 +223,7 @@ def step2(luminance, total_time, interval, rad_init, index):
         fi = 0
         for fi in range(88):
             if freq_array[fi] < 0.01: continue  # 避免浮点数运算误差。相当于0，无叠加。
-            sinewave += freq_array[fi] * np.sin(2 * np.pi * piano_f[fi] * time + 2 * np.pi * np.random.random())
+            sinewave += freq_array[fi] * sin(2 * pi * piano_f[fi] * time + 2 * pi * random.random())
         pass
     pass
 
@@ -222,7 +232,7 @@ def step2(luminance, total_time, interval, rad_init, index):
     return sinewave, i, rad_end
 
 def main(argv):
-    start = time.time()
+    start = time()
 
     get_opts(argv)
 
@@ -237,7 +247,7 @@ def main(argv):
     # while i < 26000:
         sinewave, i, rad = step2(luminance , total_time, interval, rad, i)
 
-        print('\r%%%.2f' % (rad/(2*np.pi)*100), end='')
+        print('\r%%%.2f' % (rad/(2*pi)*100), end='')
 
         for sample in sinewave:
             all_samples.append([sample])
@@ -248,9 +258,9 @@ def main(argv):
     # print(len(all_samples))
     # samples_2_write = all_samples
     samples_2_write = adjust_range(all_samples)
-    sf.write(snd_path, samples_2_write, sample_rate, 'PCM_24')
+    write(snd_path, samples_2_write, sample_rate, 'PCM_24')
 
-    dur = time.time() - start
+    dur = time() - start
     print('cost: %f s.' % dur)
     return
 
@@ -268,7 +278,7 @@ def get_opts(argv):
 
     try:
         # args 表示剩下未解析的参数。
-        opts, args = getopt.getopt(argv[1:], 'hi:o:pt:r:', [
+        opts, args = getopt(argv[1:], 'hi:o:pt:r:', [
             'help',
             'img_path=',
             'snd_path=',
@@ -338,7 +348,7 @@ This is the help infomation.
 --freq_max:            The maximum frequency. The argument must be an integer. Default is 200000Hz. This parameter only works when '-p' or '--piano' is not set.
 --freq_min:            The minimum frequency. The argument must be an integer. Default is 0Hz. This parameter only works when '-p' or '--piano' is not set.
     ''')
-    sys.exit(0)
+    exit(0)
 
 def test_options():
     print('img_path:\t %s' % img_path)
@@ -372,18 +382,18 @@ def adjust_s(f):
 def calc_freq2(s):
     # 5000/765
     # return 6.5360 * s
-    return np.exp(s/765 * 10)
+    return exp(s/765 * 10)
 
 # 根据距离定频率，直接频率，
 def calc_freq(p, pmax):
-    # np.exp(10) == 22026
-    # np.exp(5) == 148
+    # exp(10) == 22026
+    # exp(5) == 148
     rate = (freq_max - freq_min)/(22026 - 148)
     # TODO: 映射算法将来是要改动的. 这是直接映射到0~20000了。
     # return (16000-200)/pmax*p + 200
     # return 20000/pmax*p
-    return np.exp(p/pmax * 5 + 5) * rate + freq_min
-    # return np.exp(p/pmax * 10)
+    return exp(p/pmax * 5 + 5) * rate + freq_min
+    # return exp(p/pmax * 10)
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main(argv)
